@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color Matcher</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+        }
+
+        /* Glassmorphism styling */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        /* Custom Range Sliders */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+            height: 12px;
+            border-radius: 6px;
+            outline: none;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 24px;
+            width: 24px;
+            border-radius: 50%;
+            background: #ffffff;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            border: 2px solid #fff;
+            transition: transform 0.1s;
+        }
+
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+        }
+
+        /* Slider specific track colors will be updated via JS */
+        #r-slider::-webkit-slider-runnable-track { background: var(--r-track-bg, #333); border-radius: 6px; height: 12px;}
+        #g-slider::-webkit-slider-runnable-track { background: var(--g-track-bg, #333); border-radius: 6px; height: 12px;}
+        #b-slider::-webkit-slider-runnable-track { background: var(--b-track-bg, #333); border-radius: 6px; height: 12px;}
+
+        /* Animation for result */
+        @keyframes popIn {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-pop-in {
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        /* Confetti pseudo elements */
+        .confetti-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+            overflow: hidden;
+        }
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #f00;
+            animation: fall linear forwards;
+        }
+        @keyframes fall {
+            to { transform: translateY(100vh) rotate(720deg); }
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-8">
+
+    <div class="w-full max-w-4xl mx-auto glass-panel rounded-3xl p-6 sm:p-10 relative">
+        
+        <!-- Header -->
+        <div class="text-center mb-10">
+            <h1 class="text-4xl sm:text-5xl font-extrabold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600 tracking-tight">
+                Color Matcher
+            </h1>
+            <p class="text-gray-400 text-sm sm:text-base">ターゲットカラーと同じ色をRGBスライダーで作ろう！</p>
+        </div>
+
+        <!-- Color Display Area -->
+        <div class="flex flex-col sm:flex-row gap-6 mb-10">
+            <!-- Target Color Box -->
+            <div class="flex-1 flex flex-col items-center">
+                <h2 class="text-xl font-semibold mb-3 tracking-wide text-gray-300">Target Color</h2>
+                <div id="target-color-box" class="w-full aspect-square max-h-64 rounded-2xl shadow-2xl transition-colors duration-500" style="background-color: rgb(0,0,0);"></div>
+                <div class="mt-4 flex gap-4 text-sm font-mono text-gray-400">
+                    <div>R: ???</div>
+                    <div>G: ???</div>
+                    <div>B: ???</div>
+                </div>
+            </div>
+
+            <!-- VS Badge -->
+            <div class="flex items-center justify-center -my-4 sm:my-0 sm:-mx-4 z-10">
+                <div class="bg-gray-800 text-white rounded-full w-12 h-12 flex items-center justify-center font-bold text-xl border-4 border-gray-900 shadow-lg">
+                    VS
+                </div>
+            </div>
+
+            <!-- Your Color Box -->
+            <div class="flex-1 flex flex-col items-center">
+                <h2 class="text-xl font-semibold mb-3 tracking-wide text-gray-300">Your Color</h2>
+                <div id="your-color-box" class="w-full aspect-square max-h-64 rounded-2xl shadow-2xl transition-colors duration-100" style="background-color: rgb(128,128,128);"></div>
+                <div class="mt-4 flex gap-4 text-sm font-mono text-gray-200">
+                    <div id="val-r">R: 128</div>
+                    <div id="val-g">G: 128</div>
+                    <div id="val-b">B: 128</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls Area -->
+        <div class="max-w-2xl mx-auto space-y-6">
+            <!-- Red Slider -->
+            <div class="flex items-center gap-4">
+                <div class="w-8 font-bold text-red-500 text-xl">R</div>
+                <input type="range" id="r-slider" min="0" max="255" value="128">
+            </div>
+            <!-- Green Slider -->
+            <div class="flex items-center gap-4">
+                <div class="w-8 font-bold text-green-500 text-xl">G</div>
+                <input type="range" id="g-slider" min="0" max="255" value="128">
+            </div>
+            <!-- Blue Slider -->
+            <div class="flex items-center gap-4">
+                <div class="w-8 font-bold text-blue-500 text-xl">B</div>
+                <input type="range" id="b-slider" min="0" max="255" value="128">
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="mt-12 flex flex-col sm:flex-row justify-center gap-4">
+            <button id="check-btn" class="px-8 py-4 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-bold rounded-xl shadow-lg transform transition hover:-translate-y-1 text-lg w-full sm:w-auto">
+                色を判定する
+            </button>
+            <button id="next-btn" class="hidden px-8 py-4 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-xl shadow-lg transform transition hover:-translate-y-1 text-lg w-full sm:w-auto">
+                次の色へ進む
+            </button>
+        </div>
+
+        <!-- Result Overlay -->
+        <div id="result-overlay" class="hidden absolute inset-0 glass-panel rounded-3xl z-20 flex flex-col items-center justify-center text-center p-6 bg-gray-900/90 backdrop-blur-md">
+            <div class="animate-pop-in">
+                <h3 id="result-msg" class="text-3xl sm:text-4xl font-bold mb-4">Excellent!</h3>
+                <div class="text-7xl sm:text-9xl font-black mb-6 text-transparent bg-clip-text bg-gradient-to-br from-yellow-300 to-orange-500 drop-shadow-lg">
+                    <span id="score-display">0</span>%
+                </div>
+                
+                <div class="flex justify-center gap-8 mb-8 text-lg font-mono">
+                    <div class="text-gray-400">
+                        <p class="mb-1 text-sm text-gray-500">Target</p>
+                        <p id="result-target-rgb">rgb(0,0,0)</p>
+                    </div>
+                    <div class="text-white">
+                        <p class="mb-1 text-sm text-gray-500">Yours</p>
+                        <p id="result-your-rgb">rgb(0,0,0)</p>
+                    </div>
+                </div>
+
+                <button id="close-result-btn" class="px-8 py-3 bg-white text-gray-900 hover:bg-gray-200 font-bold rounded-full shadow-lg transform transition hover:scale-105">
+                    結果を閉じて次へ
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confetti Container -->
+    <div id="confetti-container" class="confetti-container"></div>
+
+    <script>
+        // DOM Elements
+        const targetColorBox = document.getElementById('target-color-box');
+        const yourColorBox = document.getElementById('your-color-box');
+        
+        const rSlider = document.getElementById('r-slider');
+        const gSlider = document.getElementById('g-slider');
+        const bSlider = document.getElementById('b-slider');
+        
+        const valR = document.getElementById('val-r');
+        const valG = document.getElementById('val-g');
+        const valB = document.getElementById('val-b');
+        
+        const checkBtn = document.getElementById('check-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const resultOverlay = document.getElementById('result-overlay');
+        const closeResultBtn = document.getElementById('close-result-btn');
+        
+        const scoreDisplay = document.getElementById('score-display');
+        const resultMsg = document.getElementById('result-msg');
+        const resultTargetRgb = document.getElementById('result-target-rgb');
+        const resultYourRgb = document.getElementById('result-your-rgb');
+
+        // State
+        let targetColor = { r: 0, g: 0, b: 0 };
+        let currentColor = { r: 128, g: 128, b: 128 };
+
+        // Initialize Game
+        function initGame() {
+            // Generate random target color
+            targetColor = {
+                r: Math.floor(Math.random() * 256),
+                g: Math.floor(Math.random() * 256),
+                b: Math.floor(Math.random() * 256)
+            };
+            targetColorBox.style.backgroundColor = `rgb(${targetColor.r}, ${targetColor.g}, ${targetColor.b})`;
+            
+            // Reset current color to middle
+            currentColor = { r: 128, g: 128, b: 128 };
+            rSlider.value = currentColor.r;
+            gSlider.value = currentColor.g;
+            bSlider.value = currentColor.b;
+            
+            updateYourColor();
+            
+            // Reset UI
+            resultOverlay.classList.add('hidden');
+            checkBtn.classList.remove('hidden');
+            nextBtn.classList.add('hidden');
+            document.getElementById('confetti-container').innerHTML = '';
+        }
+
+        // Update Slider Gradients and Color Box
+        function updateYourColor() {
+            currentColor = {
+                r: parseInt(rSlider.value),
+                g: parseInt(gSlider.value),
+                b: parseInt(bSlider.value)
+            };
+
+            // Update text values
+            valR.textContent = `R: ${currentColor.r.toString().padStart(3, '0')}`;
+            valG.textContent = `G: ${currentColor.g.toString().padStart(3, '0')}`;
+            valB.textContent = `B: ${currentColor.b.toString().padStart(3, '0')}`;
+
+            // Update color box
+            yourColorBox.style.backgroundColor = `rgb(${currentColor.r}, ${currentColor.g}, ${currentColor.b})`;
+
+            // Update slider track backgrounds
+            const rPercent = (currentColor.r / 255) * 100;
+            const gPercent = (currentColor.g / 255) * 100;
+            const bPercent = (currentColor.b / 255) * 100;
+
+            document.documentElement.style.setProperty('--r-track-bg', `linear-gradient(to right, #ef4444 ${rPercent}%, #374151 ${rPercent}%)`);
+            document.documentElement.style.setProperty('--g-track-bg', `linear-gradient(to right, #22c55e ${gPercent}%, #374151 ${gPercent}%)`);
+            document.documentElement.style.setProperty('--b-track-bg', `linear-gradient(to right, #3b82f6 ${bPercent}%, #374151 ${bPercent}%)`);
+        }
+
+        // Event Listeners for sliders
+        rSlider.addEventListener('input', updateYourColor);
+        gSlider.addEventListener('input', updateYourColor);
+        bSlider.addEventListener('input', updateYourColor);
+
+        // Calculate Match Score (0 to 100)
+        function calculateScore() {
+            // Maximum possible Euclidean distance in RGB space
+            const maxDistance = Math.sqrt(Math.pow(255, 2) * 3);
+            
+            // Current distance
+            const distance = Math.sqrt(
+                Math.pow(targetColor.r - currentColor.r, 2) +
+                Math.pow(targetColor.g - currentColor.g, 2) +
+                Math.pow(targetColor.b - currentColor.b, 2)
+            );
+            
+            // Convert to percentage (100% is perfect match)
+            let score = ((maxDistance - distance) / maxDistance) * 100;
+            return Math.max(0, score.toFixed(1)); // Keep 1 decimal place
+        }
+
+        // Confetti Effect
+        function createConfetti() {
+            const container = document.getElementById('confetti-container');
+            const colors = ['#fce18a', '#ff726d', '#b48def', '#f4306d'];
+            
+            for (let i = 0; i < 100; i++) {
+                const confetti = document.createElement('div');
+                confetti.classList.add('confetti');
+                confetti.style.left = Math.random() * 100 + 'vw';
+                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.top = -10 + 'px';
+                
+                // Randomize animation
+                const duration = Math.random() * 3 + 2;
+                const delay = Math.random() * 2;
+                confetti.style.animationDuration = duration + 's';
+                confetti.style.animationDelay = delay + 's';
+                
+                // Randomize shape (circle or square)
+                if(Math.random() > 0.5) confetti.style.borderRadius = '50%';
+                
+                container.appendChild(confetti);
+            }
+        }
+
+        // Check Button Click
+        checkBtn.addEventListener('click', () => {
+            const score = calculateScore();
+            
+            // Animate Score Counter
+            let currentDisplayScore = 0;
+            const duration = 1000;
+            const interval = 20;
+            const step = score / (duration / interval);
+            
+            scoreDisplay.textContent = "0";
+            resultOverlay.classList.remove('hidden');
+
+            const counter = setInterval(() => {
+                currentDisplayScore += step;
+                if (currentDisplayScore >= score) {
+                    currentDisplayScore = score;
+                    clearInterval(counter);
+                    // Add extra effects for high scores
+                    if(score >= 95) {
+                        createConfetti();
+                    }
+                }
+                scoreDisplay.textContent = currentDisplayScore.toFixed(1);
+            }, interval);
+
+            // Set messages and info
+            if (score >= 98) resultMsg.textContent = "Perfect Match! 👑";
+            else if (score >= 90) resultMsg.textContent = "Amazing! 🌟";
+            else if (score >= 80) resultMsg.textContent = "Great Job! 👍";
+            else if (score >= 60) resultMsg.textContent = "Not Bad! 🤔";
+            else resultMsg.textContent = "Keep Trying! 💪";
+
+            resultTargetRgb.textContent = `rgb(${targetColor.r}, ${targetColor.g}, ${targetColor.b})`;
+            resultYourRgb.textContent = `rgb(${currentColor.r}, ${currentColor.g}, ${currentColor.b})`;
+
+            // Toggle buttons
+            checkBtn.classList.add('hidden');
+            nextBtn.classList.remove('hidden');
+        });
+
+        // Next Button / Close Modal Logic
+        const handleNext = () => {
+            initGame();
+        };
+
+        nextBtn.addEventListener('click', handleNext);
+        closeResultBtn.addEventListener('click', handleNext);
+
+        // Start Game
+        window.onload = initGame;
+    </script>
+</body>
+</html>
