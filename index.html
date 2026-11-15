@@ -182,9 +182,14 @@
                     </div>
                 </div>
 
-                <button id="close-result-btn" class="px-8 py-3 bg-white text-gray-900 hover:bg-gray-200 font-bold rounded-full shadow-lg transform transition hover:scale-105">
-                    結果を閉じて次へ
-                </button>
+                <div class="flex flex-col sm:flex-row justify-center gap-3">
+                    <button id="retry-btn" class="px-8 py-3 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-full shadow-lg transform transition hover:scale-105">
+                        同じ色に再挑戦
+                    </button>
+                    <button id="close-result-btn" class="px-8 py-3 bg-white text-gray-900 hover:bg-gray-200 font-bold rounded-full shadow-lg transform transition hover:scale-105">
+                        次の色へ進む
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -209,6 +214,7 @@
         const nextBtn = document.getElementById('next-btn');
         const resultOverlay = document.getElementById('result-overlay');
         const closeResultBtn = document.getElementById('close-result-btn');
+        const retryBtn = document.getElementById('retry-btn');
         
         const scoreDisplay = document.getElementById('score-display');
         const resultMsg = document.getElementById('result-msg');
@@ -218,6 +224,7 @@
         // State
         let targetColor = { r: 0, g: 0, b: 0 };
         let currentColor = { r: 128, g: 128, b: 128 };
+        let scoreCounter = null;
 
         // Initialize Game
         function initGame() {
@@ -237,7 +244,12 @@
             
             updateYourColor();
             
-            // Reset UI
+            resetResult();
+        }
+
+        function resetResult() {
+            clearInterval(scoreCounter);
+            scoreCounter = null;
             resultOverlay.classList.add('hidden');
             checkBtn.classList.remove('hidden');
             nextBtn.classList.add('hidden');
@@ -330,11 +342,13 @@
             scoreDisplay.textContent = "0";
             resultOverlay.classList.remove('hidden');
 
-            const counter = setInterval(() => {
+            clearInterval(scoreCounter);
+            scoreCounter = setInterval(() => {
                 currentDisplayScore += step;
                 if (currentDisplayScore >= score) {
                     currentDisplayScore = score;
-                    clearInterval(counter);
+                    clearInterval(scoreCounter);
+                    scoreCounter = null;
                     // Add extra effects for high scores
                     if(score >= 95) {
                         createConfetti();
@@ -365,6 +379,7 @@
 
         nextBtn.addEventListener('click', handleNext);
         closeResultBtn.addEventListener('click', handleNext);
+        retryBtn.addEventListener('click', resetResult);
 
         // Start Game
         window.onload = initGame;
